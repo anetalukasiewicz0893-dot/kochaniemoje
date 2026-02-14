@@ -11,193 +11,353 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
         :root {
-            --bg: #fffafa; --ink: #5c5252; --ink-muted: #a89a9a;
-            --accent-a: rgba(220, 180, 230, 0.55); --accent-s: rgba(180, 210, 230, 0.55); 
-            --rose: #e5989b; --card-bg: rgba(255, 255, 255, 0.4); --card-border: rgba(255, 255, 255, 0.7);
-            --font-main: 'Outfit', sans-serif; --font-display: 'Cormorant Garamond', serif;
+            --bg: #fffafa; 
+            --ink: #5c5252; 
+            --ink-muted: #a89a9a;
+            --accent-a: rgba(220, 180, 230, 0.55); 
+            --accent-s: rgba(180, 210, 230, 0.55); 
+            --rose: #e5989b;
+            --card-bg: rgba(255, 255, 255, 0.4);
+            --card-border: rgba(255, 255, 255, 0.7);
+            --font-main: 'Outfit', sans-serif;
+            --font-display: 'Cormorant Garamond', serif;
         }
-        html, body { width: 100%; height: 100%; overflow: hidden; font-family: var(--font-main); background: var(--bg); color: var(--ink); }
+
+        html, body {
+            width: 100%; height: 100%; overflow: hidden;
+            font-family: var(--font-main);
+            background: var(--bg);
+            color: var(--ink);
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* ═ BACKGROUND ═ */
         #pCanvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
-        .page { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; z-index: 10; visibility: hidden; opacity: 0; transition: opacity 0.6s ease; }
+        .grain { position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: 0.03; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+
+        .page {
+            position: fixed; inset: 0; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; padding: 20px;
+            z-index: 10; visibility: hidden; opacity: 0; transition: opacity 0.6s ease;
+        }
         .page.on { visibility: visible; opacity: 1; }
-        .btn-pill { font-family: var(--font-main); font-weight: 500; text-transform: uppercase; letter-spacing: 1.5px; font-size: 10px; border: 1px solid var(--card-border); border-radius: 999px; cursor: pointer; transition: 0.3s; background: rgba(255, 255, 255, 0.4); backdrop-filter: blur(10px); color: var(--ink); padding: 12px 24px; }
+
+        .content-wrap { width: 100%; max-width: 450px; display: flex; flex-direction: column; align-items: center; text-align: center; }
+
+        .instruction-text {
+            font-family: var(--font-display); font-size: 17px; font-style: italic; color: var(--ink-muted);
+            text-align: center; max-width: 310px; line-height: 1.4;
+            position: absolute; top: 12%; z-index: 20;
+        }
+
+        /* ═ BUTTONS ═ */
+        .btn-pill {
+            font-family: var(--font-main); font-weight: 500; text-transform: uppercase; letter-spacing: 1.5px; font-size: 10px;
+            border: 1px solid var(--card-border); border-radius: 999px; cursor: pointer; transition: 0.3s;
+            background: rgba(255, 255, 255, 0.4); backdrop-filter: blur(10px); color: var(--ink); padding: 12px 24px;
+        }
+        .btn-pill:hover { background: #fff; border-color: var(--rose); }
+
         .nav { position: fixed; bottom: 0; left: 0; right: 0; z-index: 100; display: flex; justify-content: center; padding: 15px 16px calc(15px + env(safe-area-inset-bottom, 0px)); }
-        .nav-pill { display: flex; gap: 4px; padding: 6px; background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(25px); border: 1px solid var(--card-border); border-radius: 999px; }
-        .nb { width: 50px; height: 44px; border: none; border-radius: 999px; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--ink-muted); }
-        .nb.on { background: #fff; color: var(--rose); }
+        .nav-pill { display: flex; gap: 4px; padding: 6px; background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(25px); border: 1px solid var(--card-border); border-radius: 999px; box-shadow: 0 4px 30px rgba(0,0,0,0.03); }
+        .nb { position: relative; width: 50px; height: 44px; border: none; border-radius: 999px; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.3s; color: var(--ink-muted); }
+        .nb svg { width: 22px; height: 22px; stroke-width: 1.2; }
+        .nb.on { background: #fff; color: var(--rose); box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
+        .nb-tip { position: absolute; bottom: -12px; font-size: 6px; font-weight: 800; text-transform: uppercase; opacity: 0; letter-spacing: 1px; }
+        .nb.on .nb-tip { opacity: 1; }
+
+        .top-heart-btn { position: fixed; top: 20px; right: 20px; z-index: 110; width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--card-border); background: rgba(255,255,255,0.4); backdrop-filter: blur(10px); cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--rose); font-size: 20px; transition: 0.3s; }
+
+        /* ═ TITLES & COUNTERS ═ */
         .hc { display: flex; gap: 40px; margin-bottom: 20px; }
-        .cn { font-family: var(--font-display); font-size: 64px; font-weight: 300; line-height: 1; color: var(--rose); }
-        .ht { font-family: 'Allura', cursive; font-size: clamp(90px, 22vw, 150px); line-height: 0.9; color: var(--ink); }
-        .qc { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 25px; padding: 50px; width: 100%; max-width: 380px; text-align: center; }
-        .bb { position: absolute; max-width: 180px; padding: 14px; border-radius: 20px; font-size: 13px; animation: bf 20s infinite alternate ease-in-out; }
-        .bb.bA { background: var(--accent-a); } .bb.bS { background: var(--accent-s); }
-        @keyframes bf { 0%{transform:translate(0,0)} 100%{transform:translate(10px,-15px)} }
-        .input-bar { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; width: 90%; max-width: 450px; }
-        .auth-btn.active-A { background: var(--accent-a); } .auth-btn.active-S { background: var(--accent-s); }
-        .mbg { position: fixed; inset: 0; z-index: 200; background: rgba(0, 0, 0, 0.1); backdrop-filter: blur(10px); display: none; align-items: center; justify-content: center; }
-        .mbg.op { display: flex; }
+        .cn { font-family: var(--font-display); font-size: 64px; font-weight: 300; line-height: 1; letter-spacing: -3px; color: var(--rose); opacity: 0.7; }
+        .cl { font-size: 8px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: var(--ink-muted); margin-top: 8px; }
+        .ht { font-family: 'Allura', cursive; font-size: clamp(90px, 22vw, 150px); line-height: 0.9; margin-bottom: 10px; color: var(--ink); }
+        .hs { font-size: 9px; font-weight: 800; letter-spacing: 5px; text-transform: uppercase; color: var(--ink-muted); }
+
+        .qc { background: var(--card-bg); backdrop-filter: blur(20px); border: 1px solid var(--card-border); border-radius: 25px; padding: 50px 30px; min-height: 320px; width: 100%; max-width: 380px; box-shadow: 0 10px 40px rgba(0,0,0,0.02); cursor: pointer; margin-top: 40px; }
+        .qq { font-family: var(--font-display); font-size: 24px; color: var(--ink); line-height: 1.5; }
+        .qfill { height: 100%; background: linear-gradient(90deg, var(--accent-a), var(--accent-s)); transition: width 0.7s ease; }
+
+        /* ═ BUBBLES & ITEMS ═ */
+        .tf { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+        .bb { position: absolute; max-width: 180px; padding: 14px 20px; border-radius: 20px; font-size: 13px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); animation: bf 20s infinite alternate ease-in-out; pointer-events: auto; }
+        .bb.bA { background: var(--accent-a); color: #4d2d4f; border: 1px solid rgba(255, 255, 255, 0.4); }
+        .bb.bS { background: var(--accent-s); color: #2d414f; border: 1px solid rgba(255, 255, 255, 0.4); }
+        .bt { display: block; font-size: 8px; font-weight: 800; opacity: 0.5; margin-bottom: 5px; text-transform: uppercase; }
+
+        @keyframes bf { 0%{transform:translate(0,0) rotate(0deg)} 100%{transform:translate(10px,-15px) rotate(1deg)} }
+
+        .whisper-item { background: var(--card-bg); backdrop-filter: blur(15px); border: 1px solid var(--card-border); padding: 25px; border-radius: 25px; width: 100%; max-width: 340px; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.02); }
+        .whisper-item.wA { background: var(--accent-a); color: #4d2d4f; }
+        .whisper-item.wS { background: var(--accent-s); color: #2d414f; }
+        .whisper-q { font-family: var(--font-display); font-size: 21px; font-style: italic; margin-bottom: 20px; }
+
+        /* ═ INPUT ═ */
+        .input-bar { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; width: calc(100% - 40px); max-width: 450px; z-index: 100; }
+        .author-sel { display: flex; gap: 2px; padding: 4px; background: rgba(255, 255, 255, 0.6); border: 1px solid var(--card-border); border-radius: 999px; }
+        .auth-btn { width: 38px; height: 38px; border-radius: 50%; border: none; font-family: var(--font-main); font-weight: 800; font-size: 14px; cursor: pointer; transition: 0.3s; background: transparent; color: var(--ink-muted); }
+        .auth-btn.active-A { background: var(--accent-a); color: #4d2d4f; }
+        .auth-btn.active-S { background: var(--accent-s); color: #2d414f; }
+        .field-wrap { flex: 1; display: flex; align-items: center; background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(10px); border: 1px solid var(--card-border); border-radius: 999px; padding: 4px 4px 4px 20px; }
+        .field-wrap input { flex: 1; border: none; background: transparent; outline: none; font-size: 14px; color: var(--ink); font-family: var(--font-main); }
+        .send-btn { width: 38px; height: 38px; border-radius: 50%; border: none; background: var(--ink); color: #fff; cursor: pointer; font-size: 18px; }
+
+        .mbg { position: fixed; inset: 0; z-index: 200; background: rgba(0, 0, 0, 0.08); backdrop-filter: blur(20px); display: none; align-items: center; justify-content: center; padding: 24px; opacity: 0; transition: 0.3s; }
+        .mbg.op { opacity: 1; display: flex; }
+        .mbox { width: 100%; max-width: 310px; background: #fff; border-radius: 25px; padding: 40px 30px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.06); }
+
+        #pdfT { position: absolute; left: -9999px; top: 0; width: 800px; padding: 80px; background: #fff; text-align: center; }
+        #pdfT h1 { font-family: 'Allura', cursive; font-size: 100px; color: #3d1a1a; }
+
+        ::-webkit-scrollbar { display: none; }
     </style>
 </head>
 <body>
+
 <canvas id="pCanvas"></canvas>
+<div class="grain"></div>
+
+<button class="top-heart-btn" onclick="oM()">♡</button>
+
 <section class="page on" id="pg-home">
     <div class="content-wrap">
-        <div class="hc"><div class="cb"><div class="cn" id="cT">—</div></div><div class="cb"><div class="cn" id="cA">—</div></div></div>
+        <div class="hc">
+            <div class="cb"><div class="cn" id="cT">—</div><div class="cl">Dni razem</div></div>
+            <div style="width:1px; background:var(--ink-muted); height:50px; opacity:0.2; align-self:center;"></div>
+            <div class="cb"><div class="cn" id="cA">—</div><div class="cl">Dni osobno</div></div>
+        </div>
         <h1 class="ht">A &amp; S</h1>
+        <p class="hs">od pierwszego dnia</p>
     </div>
 </section>
-<section class="page" id="pg-thoughts"><div id="tF" style="position:absolute; inset:0;"></div>
+
+<section class="page" id="pg-questions">
+    <p class="instruction-text">Te 36 pytań ma nas podobno do siebie zbliżyć but idk let's see</p>
+    <div class="content-wrap">
+        <div style="width:100%; text-align:center;">
+            <div style="height:2px; background:rgba(0,0,0,0.04); border-radius:2px; overflow:hidden; margin-bottom:12px;">
+                <div class="qfill" id="qF" style="width:0%"></div>
+            </div>
+            <div style="font-size:9px; font-weight:800; letter-spacing:3px; color:var(--ink-muted);" id="qL">0 / 36</div>
+        </div>
+        <div class="qc" onclick="handleQ()">
+            <div id="qN" style="font-family:var(--font-display); font-size:60px; color:var(--ink-muted); opacity:0.15; margin-bottom:10px;"></div>
+            <p class="qq" id="qQ" style="font-style: italic; color: var(--ink-muted);">Dotknij karty, aby odkryć dzisiejsze pytanie</p>
+            <p id="qT" style="margin-top:30px; font-size:11px; font-weight:800; background:rgba(255,255,255,0.7); padding:10px 25px; border-radius:999px; display:none;"></p>
+            <div id="qD" style="display:none; margin-top:25px; color:var(--rose); font-weight:800; font-family: var(--font-display); font-size: 20px;">✦ Przeszliście wszystkie 36 pytań</div>
+        </div>
+    </div>
+</section>
+
+<section class="page" id="pg-thoughts">
+    <p class="instruction-text">Tutaj możemy napisać sobie miłe słówka w ciągu dnia a potem eksportować do PDF</p>
+    <div class="tf" id="tF"></div>
     <div class="input-bar">
-        <button id="bA-t" onclick="pA('A')" class="auth-btn active-A">A</button>
-        <button id="bS-t" onclick="pA('S')" class="auth-btn">S</button>
-        <input type="text" id="tI" placeholder="Coś miłego?">
-        <button onclick="sT()">↑</button>
+        <div class="author-sel">
+            <button id="bA-t" onclick="pA('A')" class="auth-btn active-A">A</button>
+            <button id="bS-t" onclick="pA('S')" class="auth-btn">S</button>
+        </div>
+        <div class="field-wrap">
+            <input type="text" id="tI" placeholder="Napisz mi cos miłego" maxlength="140">
+            <button onclick="sT()" class="send-btn">↑</button>
+        </div>
     </div>
 </section>
-<section class="page" id="pg-whispers"><div id="wList" style="width:100%; overflow-y:auto; padding:20px;"></div>
+
+<section class="page" id="pg-whispers">
+    <p class="instruction-text" style="top: 100px;">Po napisaniu pytania, można je usunąć. Może też odważysz się i poczekasz aż druga osoba je zobaczy i usunie ;)?</p>
+    <div id="wList" style="width:100%; display:flex; flex-direction:column; align-items:center; overflow-y:auto; max-height: 50vh; margin-top: 50px;"></div>
     <div class="input-bar">
-        <button id="bA-w" onclick="pA('A')" class="auth-btn active-A">A</button>
-        <button id="bS-w" onclick="pA('S')" class="auth-btn">S</button>
-        <input type="text" id="wI" placeholder="Sekret...">
-        <button onclick="sW()">↑</button>
+        <div class="author-sel">
+            <button id="bA-w" onclick="pA('A')" class="auth-btn active-A">A</button>
+            <button id="bS-w" onclick="pA('S')" class="auth-btn">S</button>
+        </div>
+        <div class="field-wrap">
+            <input type="text" id="wI" placeholder="Śmiało... nikt nie dowie" maxlength="140">
+            <button onclick="sW()" class="send-btn">↑</button>
+        </div>
     </div>
 </section>
-<nav class="nav"><div class="nav-pill"><button class="nb on" onclick="go('home')">H</button><button class="nb" onclick="go('thoughts')">M</button><button class="nb" onclick="go('whispers')">S</button></div></nav>
+
+<nav class="nav">
+    <div class="nav-pill">
+        <button class="nb on" data-p="home" onclick="go('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="nb-tip">A &amp; S</span></button>
+        <button class="nb" data-p="questions" onclick="go('questions')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M12 16h.01M12 12.5V11a2 2 0 1 1 2-2"/></svg><span class="nb-tip">Pytania</span></button>
+        <button class="nb" data-p="thoughts" onclick="go('thoughts')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="nb-tip">Myśli</span></button>
+        <button class="nb" data-p="whispers" onclick="go('whispers')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3c-4.97 0-9 3.134-9 7 0 1.622.716 3.106 1.914 4.256L4 18l3.75-1.5c.394.093.805.15 1.25.15 4.97 0 9-3.134 9-7s-4.03-7-9-7z"/><circle cx="9" cy="10.5" r="1"/><circle cx="12" cy="10.5" r="1"/><circle cx="15" cy="10.5" r="1"/></svg><span class="nb-tip">Szepty</span></button>
+    </div>
+</nav>
+
+<div class="mbg" id="mdl" onclick="if(event.target===this)cM()">
+    <div class="mbox">
+        <div style="font-size:10px; font-weight:800; letter-spacing:3px; text-transform:uppercase; color:var(--rose); margin-bottom:30px;">A &amp; S Archive</div>
+        <button class="btn-pill" style="width: 100%; margin-bottom: 12px;" onclick="mPDF()">⤓ &nbsp;Zapisz Myśli (PDF)</button>
+        <div style="height:1px; background:rgba(0,0,0,0.05); margin:15px 0;"></div>
+        <button class="btn-pill" style="width: 100%; color: var(--rose); border-color: var(--rose); margin-bottom: 12px;" onclick="nuke()">Resetuj wszystko</button>
+        <button class="btn-pill" style="border:none; font-size:10px; color:var(--ink-muted);" onclick="cM()">Zamknij</button>
+    </div>
+</div>
+
+<div id="pdfT"><h1>A &amp; S</h1><p style="text-transform:uppercase; letter-spacing:6px; font-size:12px; color:#9e958b; margin-top:10px;">Nasze Myśli</p><div class="pg" id="pG"></div></div>
+
 <script>
-var START='2024-12-23', APART='2026-01-29', au='A', cp='home';
+var START='2024-12-23', APART='2026-01-29';
+var QS=["Gdybyś mógł zaprosić dowolną osobę na obiad, kogo byś wybrał?", "Czy chciałbyś być sławny? W jaki sposób?", "Czy przed wykonaniem telefonu układasz sobie w głowie, co powiesz?", "Co stanowiłoby dla Ciebie \u201Edzień idealny\u201D?", "Kiedy ostatnio śpiewałeś sam dla siebie? A dla kogoś innego?", "Gdybyś mógł zachować umysł LUB ciało 30-latka do końca życia, co wybierasz?", "Czy masz przeczucie, w jaki sposób umrzesz?", "Wymień trzy rzeczy, które wydają się nam wspólne.", "Za co w swoim życiu czujesz największą wdzięczność?", "Gdybyś mógł zmienić cokolwiek w swoim wychowaniu, co by to było?", "Opowiedz historię swojego życia w 4 minuty.", "Gdybyś mógł obudzić się z nową umiejętnością, co by to było?", "Gdyby kryształowa kula mogła wyjawić Ci jedną prawdę, o co byś zapytał?", "Czy jest coś, o czym marzysz od dawna? Dlaczego tego nie zrobiłeś?", "Co jest Twoim największym życiowym osiągnięciem?", "Co najbardziej cenisz w przyjaźni?", "Jakie jest Twoje najcenniejsze wspomnienie?", "Jakie jest Twoje najgorsze wspomnienie?", "Gdybyś wiedział, że za rok umrzesz, co byś zmienił?", "Co dla Ciebie oznacza przyjaźń?", "Jaką rolę odgrywają w Twoim życiu miłość i czułość?", "Wymień 5 moich cech, które uważasz za pozytywne.", "Jak bliskie są Twoje relacje z rodziną?", "Co sądzisz o swojej relacji z matką?", "Ułóż trzy zdania zaczynające się od \u201EMy...\u201D", "Dokończ: \u201EChciałbym mieć kogoś, z kim mógłbym dzielić...\u201D", "Gdybyś miał zostać moim przyjacielem, co musiałabym o Tobie wiedzieć?", "Powiedz mi szczerze, co we mnie lubisz.", "Opisz najbardziej zawstydzającą chwilę w swoim życiu.", "Kiedy ostatnio płakałeś przy kimś? A sam?", "Powiedz mi coś, co już teraz we mnie lubisz.", "Co jest zbyt poważne, aby z tego żartować?", "Czego żałowałbyś, że komuś nie powiedziałeś, gdybyś dziś umarł?", "Twój dom płonie. Ratujesz jedną rzecz \u2014 co to jest?", "Śmierć którego członka rodziny byłaby dla Ciebie najtrudniejsza?", "Podziel się problemem i poproś mnie o radę."];
+
+var cp='home', au='A', qi=null;
+
+/* ═ VALENTINE ENGINE ═ */
+(function(){
+    var c=document.getElementById('pCanvas'), x=c.getContext('2d'), d=[];
+    function rs(){c.width=window.innerWidth;c.height=window.innerHeight;}
+    rs(); window.addEventListener('resize',rs);
+    function drawH(ctx, x, y, size, color) {
+        ctx.save(); ctx.beginPath(); ctx.translate(x, y);
+        ctx.moveTo(0, 0);
+        ctx.bezierCurveTo(-size/2, -size/2, -size, size/3, 0, size);
+        ctx.bezierCurveTo(size, size/3, size/2, -size/2, 0, 0);
+        ctx.fillStyle = color; ctx.fill(); ctx.restore();
+    }
+    for(var i=0;i<65;i++) d.push({x:Math.random()*c.width,y:Math.random()*c.height,s:Math.random()*7+5,vx:(Math.random()-0.5)*0.22,vy:(Math.random()-0.5)*0.22,a:Math.random()*0.25+0.2,cl:Math.random()>0.5?'rgba(220, 180, 230,':'rgba(180, 210, 230,'});
+    (function lp(){x.clearRect(0,0,c.width,c.height);for(var i=0;i<d.length;i++){var p=d[i];p.x+=p.vx;p.y+=p.vy;if(p.x<0)p.x=c.width;if(p.x>c.width)p.x=0;if(p.y<0)p.y=c.height;if(p.y>c.height)p.y=0;drawH(x, p.x, p.y, p.s, p.cl+p.a+')');}requestAnimationFrame(lp);})();
+})();
+
+/* ═ API SYNC LOGIC ═ */
+let renderedThoughts = new Set(); // Prevent bubbles from resetting positions
+
 async function sync() {
     try {
-        const res = await fetch('/api/data'); const data = await res.json();
-        const tF = document.getElementById('tF'); tF.innerHTML = '';
-        data.thoughts.forEach(t => { 
-            var el=document.createElement('div'); el.className='bb b'+t.a; 
-            el.style.top=Math.random()*70+'%'; el.style.left=Math.random()*70+'%'; 
-            el.innerHTML=t.t; tF.appendChild(el); 
-        });
-        const wL = document.getElementById('wList'); wL.innerHTML = '';
-        data.whispers.forEach(w => {
-            var el=document.createElement('div'); el.style.background='white'; el.style.margin='10px'; el.style.padding='15px';
-            el.innerHTML = `${w.t} <button onclick="burnW('${w._id}')">X</button>`;
-            wL.appendChild(el);
-        });
-    } catch(e) {}
-}
-async function sT() {
-    var i=document.getElementById('tI'); if(!i.value) return;
-    await fetch('/api/thoughts', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({t:i.value, a:au}) });
-    i.value=''; sync();
-}
-async function sW() {
-    var i=document.getElementById('wI'); if(!i.value) return;
-    await fetch('/api/whispers', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({t:i.value, a:au}) });
-    i.value=''; sync();
-}
-async function burnW(id) { await fetch('/api/whispers/'+id, {method:'DELETE'}); sync(); }
-function go(n){ document.querySelectorAll('.page').forEach(p=>p.classList.remove('on')); document.getElementById('pg-'+n).classList.add('on'); }
-function pA(a){ au=a; }
-setInterval(sync, 5000); sync();
-</script>
-</body>
-</html><!DOCTYPE html>
-<html lang="pl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>A & S</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,300;1,400;1,500;1,600&family=Outfit:wght@200;300;400;500;600;800&family=Allura&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <style>
-        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-        :root {
-            --bg: #fffafa; --ink: #5c5252; --ink-muted: #a89a9a;
-            --accent-a: rgba(220, 180, 230, 0.55); --accent-s: rgba(180, 210, 230, 0.55); 
-            --rose: #e5989b; --card-bg: rgba(255, 255, 255, 0.4); --card-border: rgba(255, 255, 255, 0.7);
-            --font-main: 'Outfit', sans-serif; --font-display: 'Cormorant Garamond', serif;
+        const res = await fetch('/api/data');
+        const data = await res.json();
+        
+        // Add only NEW thoughts to keep bubbles floating naturally
+        if (data.thoughts) {
+            data.thoughts.forEach(t => {
+                const thoughtId = t._id || (t.t + t.a);
+                if (!renderedThoughts.has(thoughtId)) {
+                    mkB(t.t, t.a);
+                    renderedThoughts.add(thoughtId);
+                }
+            });
         }
-        html, body { width: 100%; height: 100%; overflow: hidden; font-family: var(--font-main); background: var(--bg); color: var(--ink); }
-        #pCanvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
-        .page { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; z-index: 10; visibility: hidden; opacity: 0; transition: opacity 0.6s ease; }
-        .page.on { visibility: visible; opacity: 1; }
-        .btn-pill { font-family: var(--font-main); font-weight: 500; text-transform: uppercase; letter-spacing: 1.5px; font-size: 10px; border: 1px solid var(--card-border); border-radius: 999px; cursor: pointer; transition: 0.3s; background: rgba(255, 255, 255, 0.4); backdrop-filter: blur(10px); color: var(--ink); padding: 12px 24px; }
-        .nav { position: fixed; bottom: 0; left: 0; right: 0; z-index: 100; display: flex; justify-content: center; padding: 15px 16px calc(15px + env(safe-area-inset-bottom, 0px)); }
-        .nav-pill { display: flex; gap: 4px; padding: 6px; background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(25px); border: 1px solid var(--card-border); border-radius: 999px; }
-        .nb { width: 50px; height: 44px; border: none; border-radius: 999px; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--ink-muted); }
-        .nb.on { background: #fff; color: var(--rose); }
-        .hc { display: flex; gap: 40px; margin-bottom: 20px; }
-        .cn { font-family: var(--font-display); font-size: 64px; font-weight: 300; line-height: 1; color: var(--rose); }
-        .ht { font-family: 'Allura', cursive; font-size: clamp(90px, 22vw, 150px); line-height: 0.9; color: var(--ink); }
-        .qc { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 25px; padding: 50px; width: 100%; max-width: 380px; text-align: center; }
-        .bb { position: absolute; max-width: 180px; padding: 14px; border-radius: 20px; font-size: 13px; animation: bf 20s infinite alternate ease-in-out; }
-        .bb.bA { background: var(--accent-a); } .bb.bS { background: var(--accent-s); }
-        @keyframes bf { 0%{transform:translate(0,0)} 100%{transform:translate(10px,-15px)} }
-        .input-bar { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; width: 90%; max-width: 450px; }
-        .auth-btn.active-A { background: var(--accent-a); } .auth-btn.active-S { background: var(--accent-s); }
-        .mbg { position: fixed; inset: 0; z-index: 200; background: rgba(0, 0, 0, 0.1); backdrop-filter: blur(10px); display: none; align-items: center; justify-content: center; }
-        .mbg.op { display: flex; }
-    </style>
-</head>
-<body>
-<canvas id="pCanvas"></canvas>
-<section class="page on" id="pg-home">
-    <div class="content-wrap">
-        <div class="hc"><div class="cb"><div class="cn" id="cT">—</div></div><div class="cb"><div class="cn" id="cA">—</div></div></div>
-        <h1 class="ht">A &amp; S</h1>
-    </div>
-</section>
-<section class="page" id="pg-thoughts"><div id="tF" style="position:absolute; inset:0;"></div>
-    <div class="input-bar">
-        <button id="bA-t" onclick="pA('A')" class="auth-btn active-A">A</button>
-        <button id="bS-t" onclick="pA('S')" class="auth-btn">S</button>
-        <input type="text" id="tI" placeholder="Coś miłego?">
-        <button onclick="sT()">↑</button>
-    </div>
-</section>
-<section class="page" id="pg-whispers"><div id="wList" style="width:100%; overflow-y:auto; padding:20px;"></div>
-    <div class="input-bar">
-        <button id="bA-w" onclick="pA('A')" class="auth-btn active-A">A</button>
-        <button id="bS-w" onclick="pA('S')" class="auth-btn">S</button>
-        <input type="text" id="wI" placeholder="Sekret...">
-        <button onclick="sW()">↑</button>
-    </div>
-</section>
-<nav class="nav"><div class="nav-pill"><button class="nb on" onclick="go('home')">H</button><button class="nb" onclick="go('thoughts')">M</button><button class="nb" onclick="go('whispers')">S</button></div></nav>
-<script>
-var START='2024-12-23', APART='2026-01-29', au='A', cp='home';
-async function sync() {
-    try {
-        const res = await fetch('/api/data'); const data = await res.json();
-        const tF = document.getElementById('tF'); tF.innerHTML = '';
-        data.thoughts.forEach(t => { 
-            var el=document.createElement('div'); el.className='bb b'+t.a; 
-            el.style.top=Math.random()*70+'%'; el.style.left=Math.random()*70+'%'; 
-            el.innerHTML=t.t; tF.appendChild(el); 
-        });
-        const wL = document.getElementById('wList'); wL.innerHTML = '';
-        data.whispers.forEach(w => {
-            var el=document.createElement('div'); el.style.background='white'; el.style.margin='10px'; el.style.padding='15px';
-            el.innerHTML = `${w.t} <button onclick="burnW('${w._id}')">XXX</button>`;
-            wL.appendChild(el);
-        });
-    } catch(e) {}
+
+        // Refresh Whispers List
+        const l = document.getElementById('wList');
+        l.innerHTML = '';
+        if (data.whispers) {
+            data.whispers.forEach(it => {
+                var el = document.createElement('div'); el.className = 'whisper-item w' + it.a;
+                el.innerHTML = `<div class="whisper-q">${it.t}</div>
+                                <button class="btn-pill" style="padding:8px 18px; font-size:9px;" onclick="burnW('${it._id}')">Przeczytane (usuń)</button>`;
+                l.appendChild(el);
+            });
+        }
+    } catch (e) { console.error("Sync Error", e); }
 }
+
 async function sT() {
-    var i=document.getElementById('tI'); if(!i.value) return;
-    await fetch('/api/thoughts', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({t:i.value, a:au}) });
-    i.value=''; sync();
+    var inp = document.getElementById('tI'), txt = inp.value.trim(); if(!txt) return;
+    await fetch('/api/thoughts', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({t: txt, a: au, d: new Date().toLocaleDateString('pl-PL')}) });
+    inp.value = ''; sync();
 }
+
 async function sW() {
-    var i=document.getElementById('wI'); if(!i.value) return;
-    await fetch('/api/whispers', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({t:i.value, a:au}) });
-    i.value=''; sync();
+    var i = document.getElementById('wI'), txt = i.value.trim(); if(!txt) return;
+    await fetch('/api/whispers', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({t: txt, a: au}) });
+    i.value = ''; sync();
 }
-async function burnW(id) { await fetch('/api/whispers/'+id, {method:'DELETE'}); sync(); }
-function go(n){ document.querySelectorAll('.page').forEach(p=>p.classList.remove('on')); document.getElementById('pg-'+n).classList.add('on'); }
-function pA(a){ au=a; }
-setInterval(sync, 5000); sync();
+
+async function burnW(id) { await fetch('/api/whispers/' + id, { method: 'DELETE' }); sync(); }
+
+/* ═ CORE UI ═ */
+function go(n){
+    if(n===cp)return; cp=n;
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+    document.getElementById('pg-'+n).classList.add('on');
+    document.querySelectorAll('.nb').forEach(b=>b.classList.toggle('on',b.getAttribute('data-p')===n));
+}
+function uC(){
+    var n=Date.now();
+    document.getElementById('cT').textContent=Math.floor((n-new Date(START).getTime())/864e5);
+    document.getElementById('cA').textContent=Math.max(0,Math.floor((n-new Date(APART).getTime())/864e5));
+}
+function handleQ(){
+    var lu=parseInt(localStorage.getItem('s_u')||'0'); if(lu&&Date.now()<lu)return;
+    var c=parseInt(localStorage.getItem('s_c')||'0'); if(c>=36)return;
+    localStorage.setItem('s_u',String(Date.now()+864e5));
+    localStorage.setItem('s_q',QS[c]); localStorage.setItem('s_c',String(c+1));
+    rQ();
+}
+function rQ(){
+    var lu=parseInt(localStorage.getItem('s_u')||'0'), c=parseInt(localStorage.getItem('s_c')||'0'), q=localStorage.getItem('s_q')||'';
+    var locked=lu&&Date.now()<lu, done=c>=36;
+    document.getElementById('qF').style.width=((c/36)*100)+'%';
+    document.getElementById('qL').textContent=c+' / 36';
+    var eN=document.getElementById('qN'), eQ=document.getElementById('qQ'), eT=document.getElementById('qT'), eD=document.getElementById('qD');
+    eD.style.display='none'; eT.style.display='none'; eQ.className='qq'; eN.textContent='';
+    if(done&&!locked){ eN.textContent='\u221E'; eQ.textContent='Wasz wspólny świat.'; eD.style.display='block'; }
+    else if(locked&&q){ eN.textContent=c; eQ.textContent=q; eT.style.display='block'; sqt(lu); }
+    else { eQ.textContent='Dotknij karty, aby odkryć dzisiejsze pytanie'; eQ.style.fontStyle='italic'; }
+}
+function sqt(u){
+    if(qi)clearInterval(qi);
+    var e=document.getElementById('qT');
+    function tk(){
+        var d=u-Date.now(); if(d<=0){clearInterval(qi);qi=null;rQ();return;}
+        var h=Math.floor(d/36e5), m=Math.floor((d%36e5)/6e4), s=Math.floor((d%6e4)/1e3);
+        e.textContent='kolejne za '+h+'h '+m+'m '+s+'s';
+    }
+    tk(); qi=setInterval(tk,1000);
+}
+function pA(a){
+    au=a;
+    ['t','w'].forEach(p => {
+        document.getElementById('bA-'+p).className='auth-btn'+(a==='A'?' active-A':'');
+        document.getElementById('bS-'+p).className='auth-btn'+(a==='S'?' active-S':'');
+    });
+}
+function mkB(txt,who){
+    var f=document.getElementById('tF'); var tp=Math.random()*50+20, lf=Math.random()*55+15;
+    var el=document.createElement('div'); el.className='bb b'+who; el.style.top=tp+'%'; el.style.left=lf+'%'; el.innerHTML='<span class="bt">'+who+'</span>'+txt;
+    f.appendChild(el);
+}
+function oM(){document.getElementById('mdl').classList.add('op');}
+function cM(){document.getElementById('mdl').classList.remove('op');}
+function nuke(){ if(confirm('Zresetować wszystko?')){ fetch('/api/nuke', {method:'DELETE'}).then(()=>location.reload()); } }
+
+// PDF Export (Currently grabs from the API data instead of LocalStorage)
+async function mPDF(){
+    try {
+        const res = await fetch('/api/data');
+        const data = await res.json();
+        const a = data.thoughts || [];
+        if(!a.length){alert('Brak myśli do eksportu'); return;}
+        
+        var g=document.getElementById('pG'); g.innerHTML=''; 
+        a.forEach(it=>{ 
+            var d=document.createElement('div'); d.className='pc p'+it.a; 
+            d.innerHTML='<div style="font-size:9px; opacity:0.5; margin-bottom:5px;">'+(it.d||'')+' · '+it.a+'</div>'+it.t; 
+            g.appendChild(d); 
+        });
+        
+        cM(); 
+        setTimeout(()=>{ 
+            html2canvas(document.getElementById('pdfT'),{scale:2}).then(cv=>{ 
+                var pdf=new jspdf.jsPDF('p','mm','a4'), w=pdf.internal.pageSize.getWidth(); 
+                pdf.addImage(cv.toDataURL('image/png'),'PNG',0,0,w,(cv.height*w)/cv.width); 
+                pdf.save('AS_Archive.pdf'); 
+            }); 
+        },500);
+    } catch(e) { alert("Błąd pobierania danych do PDF"); }
+}
+
+uC(); setInterval(uC,6e4); rQ(); 
+setInterval(sync, 5000); // Check server every 5 seconds
+sync(); 
+
 </script>
 </body>
 </html>
