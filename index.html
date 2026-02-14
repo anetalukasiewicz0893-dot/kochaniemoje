@@ -179,7 +179,7 @@ async function sync() {
         const wL = document.getElementById('wList'); wL.innerHTML = '';
         data.whispers.forEach(w => {
             var el=document.createElement('div'); el.style.background='white'; el.style.margin='10px'; el.style.padding='15px';
-            el.innerHTML = `${w.t} <button onclick="burnW('${w._id}')">X</button>`;
+            el.innerHTML = `${w.t} <button onclick="burnW('${w._id}')">XXX</button>`;
             wL.appendChild(el);
         });
     } catch(e) {}
